@@ -1,9 +1,4 @@
 {
   "buildCommand": "node build.js",
-  "outputDirectory": ".",
-  "functions": {
-    "api/parse-pdf.js": {
-      "maxDuration": 30
-    }
-  }
+  "outputDirectory": "."
 }
