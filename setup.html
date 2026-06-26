@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Training Tracker — Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0d; --surface: #181818; --surface2: #222; --surface3: #2a2a2a;
+      --gold: #f0c040; --gold-bg: #1e1800; --gold-dim: #7a6010;
+      --blue: #4a9eff; --blue-bg: #0a1a2e;
+      --green: #3dba6a; --green-bg: #0a1e12;
+      --red: #f06060; --red-bg: #2a0a0a;
+      --text: #f0f0f0; --muted: #666; --border: #2e2e2e; --radius: 12px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .save-btn {
+      background: var(--gold); color: #000; border: none;
+      border-radius: 20px; padding: 8px 18px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* STEPS */
+    .steps { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .step {
+      flex: 1; padding: 10px 6px; text-align: center;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid transparent; cursor: pointer;
+    }
+    .step.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .step.done { color: var(--green); }
+
+    .step-panel { display: none; max-width: 600px; margin: 0 auto; padding: 16px 12px; }
+    .step-panel.active { display: block; }
+
+    /* STEP 1 — PDF upload */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 40px 20px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--gold); }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; }
+    .upload-label { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .upload-sub { font-size: 12px; color: var(--muted); }
+    #pdf-file { display: none; }
+
+    .pdf-preview {
+      display: none; width: 100%; height: 60vh; min-height: 300px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: #fff; margin-top: 12px;
+    }
+
+    .step-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn.primary { background: var(--gold); color: #000; }
+    .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .hint-box {
+      background: var(--surface2); border-radius: var(--radius);
+      padding: 12px 14px; font-size: 13px; color: var(--muted);
+      line-height: 1.5; margin-bottom: 16px;
+    }
+
+    /* STEP 2 — program name + days */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .field input, .field textarea, .field select {
+      width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 15px;
+      padding: 10px 12px; -webkit-appearance: none; font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--blue); background: var(--blue-bg); }
+    .field textarea { min-height: 60px; resize: none; }
+
+    /* DAY CARDS */
+    .day-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
+    }
+    .day-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .day-title { font-size: 15px; font-weight: 700; }
+    .day-count { font-size: 12px; color: var(--muted); }
+    .day-body { border-top: 1px solid var(--border); padding: 12px 14px; }
+
+    /* EXERCISE ROWS */
+    .ex-row {
+      background: var(--surface2); border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 8px;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .ex-fields { flex: 1; display: grid; gap: 6px; }
+    .ex-fields input {
+      background: var(--surface3); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px;
+      padding: 7px 10px; width: 100%; -webkit-appearance: none;
+    }
+    .ex-fields input:focus { outline: none; border-color: var(--blue); }
+    .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+    .ex-weighted-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 2px;
+    }
+    .toggle-lbl { font-size: 12px; color: var(--muted); }
+    input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--gold); }
+
+    .del-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 18px; cursor: pointer; padding: 2px 4px; line-height: 1;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .del-btn:hover { color: var(--red); }
+
+    .add-ex-btn {
+      width: 100%; background: none; border: 1.5px dashed var(--border);
+      border-radius: 10px; color: var(--muted); font-size: 13px;
+      padding: 9px; cursor: pointer; margin-top: 4px;
+    }
+    .add-ex-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+    .add-day-btn {
+      width: 100%; background: none; border: 1.5px dashed var(--border);
+      border-radius: var(--radius); color: var(--muted); font-size: 14px;
+      font-weight: 600; padding: 14px; cursor: pointer; margin-bottom: 12px;
+    }
+    .add-day-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+    .del-day-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 12px; cursor: pointer; padding: 2px 6px;
+    }
+    .del-day-btn:hover { color: var(--red); }
+
+    .section-lbl {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--muted); margin-bottom: 8px;
+    }
+
+    .error-box {
+      background: var(--red-bg); border: 1px solid var(--red);
+      border-radius: 10px; padding: 11px 14px; font-size: 13px;
+      color: var(--red); margin-bottom: 14px; display: none;
+    }
+
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,0,0,0.3); border-top-color:#000; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">Set up your programme</div>
+    <div class="header-sub" id="header-name">Welcome!</div>
+  </div>
+  <button class="save-btn" id="save-btn" onclick="saveProgram()" disabled>Save & Start</button>
+</div>
+
+<div class="steps">
+  <div class="step active" id="step-tab-1" onclick="goStep(1)">1 · Upload PDF</div>
+  <div class="step" id="step-tab-2" onclick="goStep(2)">2 · Build Programme</div>
+</div>
+
+<!-- STEP 1 -->
+<div class="step-panel active" id="step-1">
+  <div class="hint-box">Upload your training PDF — it'll stay visible while you build your programme on the next screen so you can copy the details across.</div>
+
+  <div class="upload-zone" id="upload-zone" onclick="document.getElementById('pdf-file').click()">
+    <div class="upload-icon">📄</div>
+    <div class="upload-label">Tap to upload your programme PDF</div>
+    <div class="upload-sub">PDF files only</div>
+  </div>
+  <input type="file" id="pdf-file" accept="application/pdf" onchange="handlePDF(this)">
+  <iframe class="pdf-preview" id="pdf-preview"></iframe>
+
+  <div class="step-actions">
+    <button class="btn secondary" onclick="goStep(2)">Skip — enter manually</button>
+    <button class="btn primary" id="next-btn" onclick="goStep(2)" disabled>Next →</button>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="step-panel" id="step-2">
+  <div class="error-box" id="build-error"></div>
+
+  <div class="field">
+    <label>Programme name</label>
+    <input type="text" id="prog-name" placeholder="e.g. Week 1 Strength Block">
+  </div>
+
+  <div class="section-lbl">Days</div>
+  <div id="days-container"></div>
+  <button class="add-day-btn" onclick="addDay()">+ Add Day</button>
+
+  <div class="hint-box" style="margin-top:8px">
+    💡 Weighted exercises will track weights & PBs. Non-weighted (bodyweight, cardio) just get a completion tick.
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── CONFIG — replace with your Supabase project values ────
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+// ──────────────────────────────────────────────────────────
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let currentUser = null;
+let pdfDataURL  = null;
+let dayCount    = 0;
+
+// Auth guard
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (!session) { window.location.href = 'index.html'; return; }
+  currentUser = session.user;
+  const name = session.user.user_metadata?.name || session.user.email.split('@')[0];
+  document.getElementById('header-name').textContent = `Hey ${name} 👋`;
+});
+
+// ── PDF ───────────────────────────────────────────────────
+function handlePDF(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pdfDataURL = e.target.result;
+    const preview = document.getElementById('pdf-preview');
+    preview.src = pdfDataURL;
+    preview.style.display = 'block';
+    document.getElementById('upload-zone').querySelector('.upload-label').textContent = `✓ ${file.name}`;
+    document.getElementById('next-btn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag & drop
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    const dt = new DataTransfer(); dt.items.add(file);
+    const inp = document.getElementById('pdf-file');
+    inp.files = dt.files;
+    handlePDF(inp);
+  }
+});
+
+// ── STEPS ─────────────────────────────────────────────────
+function goStep(n) {
+  [1, 2].forEach(i => {
+    document.getElementById(`step-${i}`).classList.toggle('active', i === n);
+    document.getElementById(`step-tab-${i}`).classList.toggle('active', i === n);
+  });
+  if (n === 2) {
+    document.getElementById('save-btn').disabled = false;
+    if (dayCount === 0) addDay(); // start with one day
+  }
+}
+
+// ── DAY BUILDER ───────────────────────────────────────────
+function addDay() {
+  dayCount++;
+  const idx = dayCount;
+  const container = document.getElementById('days-container');
+
+  const card = document.createElement('div');
+  card.className = 'day-card';
+  card.id = `day-${idx}`;
+
+  const header = document.createElement('div');
+  header.className = 'day-header';
+  header.innerHTML = `
+    <div>
+      <span class="day-title">Day ${idx}</span>
+      <span class="day-count" id="day-count-${idx}"></span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="del-day-btn" onclick="removeDay(${idx}, event)">Remove</button>
+      <span style="color:var(--muted);font-size:13px" id="chev-${idx}">▾</span>
+    </div>`;
+  header.onclick = (e) => {
+    if (e.target.classList.contains('del-day-btn')) return;
+    toggleDayBody(idx);
+  };
+
+  const body = document.createElement('div');
+  body.className = 'day-body';
+  body.id = `day-body-${idx}`;
+
+  const exContainer = document.createElement('div');
+  exContainer.id = `ex-container-${idx}`;
+  body.appendChild(exContainer);
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-ex-btn';
+  addBtn.textContent = '+ Add exercise';
+  addBtn.onclick = () => addExercise(idx);
+  body.appendChild(addBtn);
+
+  card.appendChild(header);
+  card.appendChild(body);
+  container.appendChild(card);
+
+  addExercise(idx); // start with one exercise
+  updateDayCount(idx);
+}
+
+function toggleDayBody(idx) {
+  const body = document.getElementById(`day-body-${idx}`);
+  const chev = document.getElementById(`chev-${idx}`);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.textContent = open ? '▸' : '▾';
+}
+
+function removeDay(idx, e) {
+  e.stopPropagation();
+  const card = document.getElementById(`day-${idx}`);
+  if (card) card.remove();
+}
+
+let exCounter = 0;
+function addExercise(dayIdx) {
+  exCounter++;
+  const id = `ex-${exCounter}`;
+  const container = document.getElementById(`ex-container-${dayIdx}`);
+
+  const row = document.createElement('div');
+  row.className = 'ex-row';
+  row.id = id;
+  row.dataset.day = dayIdx;
+
+  row.innerHTML = `
+    <div class="ex-fields">
+      <input type="text" placeholder="Exercise name" class="ex-name">
+      <div class="ex-grid">
+        <input type="text" placeholder="Load (e.g. 80kg, RPE 8, BW)" class="ex-load">
+        <input type="text" placeholder="Sets × Reps (e.g. 4×8)" class="ex-scheme">
+      </div>
+      <input type="text" placeholder="Notes (optional)" class="ex-notes">
+      <div class="ex-weighted-row">
+        <input type="checkbox" class="ex-weighted" id="wt-${id}" checked>
+        <label for="wt-${id}" class="toggle-lbl">Track weights & PBs</label>
+        <span style="margin-left:auto">
+          <input type="number" placeholder="Sets" class="ex-sets" style="width:56px;padding:5px 6px;font-size:13px;background:var(--surface3);border:1.5px solid var(--border);border-radius:6px;color:var(--text);text-align:center">
+          <input type="text" placeholder="Reps" class="ex-prepreps" style="width:56px;padding:5px 6px;font-size:13px;background:var(--surface3);border:1.5px solid var(--border);border-radius:6px;color:var(--text);text-align:center;margin-left:4px">
+        </span>
+      </div>
+    </div>
+    <button class="del-btn" onclick="removeExercise('${id}', ${dayIdx})">✕</button>`;
+
+  container.appendChild(row);
+  row.querySelector('.ex-name').focus();
+  updateDayCount(dayIdx);
+}
+
+function removeExercise(id, dayIdx) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  updateDayCount(dayIdx);
+}
+
+function updateDayCount(dayIdx) {
+  const count = document.querySelectorAll(`#ex-container-${dayIdx} .ex-row`).length;
+  const el = document.getElementById(`day-count-${dayIdx}`);
+  if (el) el.textContent = ` · ${count} exercise${count !== 1 ? 's' : ''}`;
+}
+
+// ── SAVE ──────────────────────────────────────────────────
+async function saveProgram() {
+  const errEl = document.getElementById('build-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('save-btn');
+
+  const progName = document.getElementById('prog-name').value.trim() || 'My Programme';
+
+  // Gather days
+  const program = [];
+  const dayCards = document.querySelectorAll('.day-card');
+  if (!dayCards.length) {
+    errEl.textContent = 'Please add at least one day.'; errEl.style.display = 'block'; return;
+  }
+
+  for (const card of dayCards) {
+    const dayIdx = parseInt(card.id.replace('day-', ''));
+    const exRows = card.querySelectorAll('.ex-row');
+    const exercises = [];
+
+    for (const row of exRows) {
+      const name = row.querySelector('.ex-name').value.trim();
+      if (!name) continue;
+      const load     = row.querySelector('.ex-load').value.trim() || 'Bodyweight';
+      const scheme   = row.querySelector('.ex-scheme').value.trim() || '';
+      const notes    = row.querySelector('.ex-notes').value.trim() || '';
+      const weighted = row.querySelector('.ex-weighted').checked;
+      const sets     = parseInt(row.querySelector('.ex-sets').value) || 3;
+      const preReps  = row.querySelector('.ex-prepreps').value.trim() || '';
+      // Generate a stable ID from day + name
+      const id = `d${dayIdx}_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').slice(0,20)}_${Date.now() % 10000}`;
+
+      exercises.push({ id, name, load, scheme, notes, weighted, sets, prescribedReps: preReps, unit: 'kg' });
+    }
+
+    if (!exercises.length) continue;
+    program.push({ label: `Day ${dayIdx}`, sections: [{ name: 'Exercises', exercises }] });
+  }
+
+  if (!program.length) {
+    errEl.textContent = 'Please add at least one exercise.'; errEl.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const { error } = await sb.from('user_programs').upsert({
+    user_id: currentUser.id,
+    name: progName,
+    program: program,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+
+  if (error) {
+    errEl.textContent = error.message; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Save & Start';
+    return;
+  }
+
+  window.location.href = 'app.html';
+}
+</script>
+</body>
+</html>
