@@ -136,6 +136,18 @@
     .complete-workout-btn.not-done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
     .complete-workout-btn.is-done { background: var(--surface2); border-color: var(--border); color: var(--muted); }
 
+    /* DATE MODAL */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 500; padding: 24px; }
+    .modal-card { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 18px; padding: 28px 24px 24px; width: 100%; max-width: 360px; }
+    .modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.4; }
+    .date-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 15px; padding: 12px 14px; font-family: inherit; -webkit-appearance: none; box-sizing: border-box; }
+    .date-input:focus { outline: none; border-color: var(--blue); background: var(--blue-bg); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-btn { flex: 1; padding: 13px; border-radius: var(--radius); font-size: 14px; font-weight: 700; cursor: pointer; border: 1.5px solid; -webkit-tap-highlight-color: transparent; }
+    .modal-btn.secondary { background: transparent; border-color: var(--border); color: var(--muted); }
+    .modal-btn.primary { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
     /* SAVE FAB */
     .save-fab { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom,0)); right: 20px; background: var(--gold); color: #000; border: none; border-radius: 50px; padding: 14px 26px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 24px rgba(240,192,64,.35); z-index: 200; -webkit-tap-highlight-color: transparent; }
     .save-fab:active { transform: scale(.95); }
@@ -172,6 +184,19 @@
 
 <button class="save-fab" onclick="saveAll()">Save ✓</button>
 <div class="toast" id="toast"></div>
+
+<!-- DATE PICKER MODAL -->
+<div class="modal-backdrop" id="date-modal" onclick="closeDateModal()" style="display:none">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-title">When did you train?</div>
+    <div class="modal-sub">Defaults to today — change if you're logging retrospectively.</div>
+    <input type="date" class="date-input" id="modal-date-input">
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeDateModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="confirmDayComplete()">Mark Complete</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -643,15 +668,47 @@ function onNoteInput(e) {
   scheduleAutoSave();
 }
 
+let pendingDayIdx = null;
+
 function toggleDayComplete(dayIdx) {
   const c = dayCompletion(dayIdx);
-  c.completedAt = c.completedAt ? null : new Date().toISOString();
-  const btn = document.getElementById(`complete-btn-${dayIdx}`);
-  if (btn) {
-    const label = DAYS[dayIdx] ? DAYS[dayIdx].label : `Day ${dayIdx+1}`;
-    btn.className = `complete-workout-btn ${c.completedAt ? 'is-done' : 'not-done'}`;
-    btn.textContent = c.completedAt ? `✓ Completed ${formatDate(c.completedAt)}` : `Mark ${label} Complete`;
+  if (c.completedAt) {
+    // Already done — toggle off directly
+    c.completedAt = null;
+    const btn = document.getElementById(`complete-btn-${dayIdx}`);
+    if (btn) {
+      const label = DAYS[dayIdx] ? DAYS[dayIdx].label : `Day ${dayIdx+1}`;
+      btn.className = 'complete-workout-btn not-done';
+      btn.textContent = `Mark ${label} Complete`;
+    }
+    updateTabDots(); renderSummary(); scheduleAutoSave();
+  } else {
+    // Show date picker modal
+    pendingDayIdx = dayIdx;
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('modal-date-input').value = today;
+    document.getElementById('date-modal').style.display = 'flex';
   }
+}
+
+function closeDateModal() {
+  document.getElementById('date-modal').style.display = 'none';
+  pendingDayIdx = null;
+}
+
+function confirmDayComplete() {
+  if (pendingDayIdx === null) return;
+  const dateVal = document.getElementById('modal-date-input').value;
+  // Use noon on selected date so timezone shifts don't flip the day
+  const iso = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
+  const c = dayCompletion(pendingDayIdx);
+  c.completedAt = iso;
+  const btn = document.getElementById(`complete-btn-${pendingDayIdx}`);
+  if (btn) {
+    btn.className = 'complete-workout-btn is-done';
+    btn.textContent = `✓ Completed ${formatDate(iso)}`;
+  }
+  closeDateModal();
   updateTabDots(); renderSummary(); scheduleAutoSave();
 }
 
