@@ -136,11 +136,9 @@
 const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
 
-// ── COACH EMAILS — add any coach email addresses here ─────
-const COACH_EMAILS = [
-  'tashjnorris@gmail.com'
-];
-// ──────────────────────────────────────────────────────────
+// ── COACH EMAILS — injected at build time from COACH_EMAILS env var ──
+const COACH_EMAILS = 'YOUR_COACH_EMAILS'.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+// ─────────────────────────────────────────────────────────────────────
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
