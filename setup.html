@@ -230,6 +230,13 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- PDF.js — extracts text from PDFs client-side so we only send text to the API -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+// Point PDF.js worker at the CDN copy
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+</script>
 <script>
 const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
@@ -260,22 +267,56 @@ function goState(name) {
 function handlePDF(input) {
   const file = input.files[0];
   if (!file) return;
+  goState('analysing');
   const reader = new FileReader();
   reader.onload = async e => {
-    const base64 = e.target.result; // includes data:application/pdf;base64, prefix
-    goState('analysing');
-    await analysePDF(base64);
+    let text;
+    try {
+      text = await extractTextFromPDF(e.target.result);
+    } catch (err) {
+      showError('Could not read the PDF — make sure it contains selectable text (not a scanned image).');
+      return;
+    }
+    await analysePDF(text);
   };
-  reader.readAsDataURL(file);
+  reader.readAsArrayBuffer(file);
 }
 
-async function analysePDF(base64) {
+async function extractTextFromPDF(arrayBuffer) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pageTexts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Preserve rough column layout by keeping items sorted by vertical position
+    const items = content.items
+      .filter(item => item.str.trim())
+      .map(item => ({ str: item.str, x: item.transform[4], y: item.transform[5] }));
+    // Group into lines (items within ~5px of each other vertically)
+    const lines = [];
+    let currentY = null, currentLine = [];
+    for (const item of items.sort((a, b) => b.y - a.y || a.x - b.x)) {
+      if (currentY === null || Math.abs(item.y - currentY) > 5) {
+        if (currentLine.length) lines.push(currentLine.map(i => i.str).join('\t'));
+        currentLine = [item];
+        currentY = item.y;
+      } else {
+        currentLine.push(item);
+      }
+    }
+    if (currentLine.length) lines.push(currentLine.map(i => i.str).join('\t'));
+    pageTexts.push(lines.join('\n'));
+  }
+  return pageTexts.join('\n\n');
+}
+
+async function analysePDF(text) {
   let res;
   try {
     res = await fetch('/api/parse-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdf: base64 }),
+      body: JSON.stringify({ text }),
     });
   } catch (err) {
     showError('Network error — check your connection and try again.');
