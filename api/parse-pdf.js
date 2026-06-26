@@ -56,8 +56,8 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set' });
   }
 
-  const { text } = req.body;
-  if (!text) {
+  const { text: pdfText } = req.body;
+  if (!pdfText) {
     return res.status(400).json({ error: 'Missing text field' });
   }
 
@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
         messages: [
           {
             role: 'user',
-            content: `${USER_PROMPT}\n\n---\n\n${text}`,
+            content: `${USER_PROMPT}\n\n---\n\n${pdfText}`,
           },
         ],
       }),
@@ -87,23 +87,23 @@ module.exports = async (req, res) => {
   }
 
   if (!anthropicRes.ok) {
-    const body = await anthropicRes.text();
-    return res.status(502).json({ error: 'Anthropic API error', detail: body });
+    const errBody = await anthropicRes.text();
+    return res.status(502).json({ error: 'Anthropic API error', detail: errBody });
   }
 
   const data = await anthropicRes.json();
-  const text = data?.content?.[0]?.text ?? '';
+  const aiText = data?.content?.[0]?.text ?? '';
 
   // Parse the JSON Claude returned
   let program;
   try {
-    // Claude sometimes wraps in ```json ... ``` even when told not to — strip it just in case
-    const cleaned = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/, '').trim();
+    // Strip markdown fences if Claude includes them despite being told not to
+    const cleaned = aiText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/, '').trim();
     program = JSON.parse(cleaned);
   } catch (err) {
     return res.status(422).json({
       error: 'Could not parse AI response as JSON',
-      raw: text,
+      raw: aiText,
     });
   }
 
