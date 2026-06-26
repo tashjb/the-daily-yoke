@@ -9,7 +9,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0d0d0d; --surface: #181818; --surface2: #222;
-      --gold: #f0c040; --gold-bg: #1e1800; --gold-dim: #7a6010;
+      --gold: #f0c040; --gold-bg: #1e1800;
       --blue: #4a9eff; --blue-bg: #0a1a2e;
       --green: #3dba6a; --green-bg: #0a1e12;
       --red: #f06060; --red-bg: #2a0a0a;
@@ -86,13 +86,13 @@
 </head>
 <body>
 
-<div class="logo">💪 The Daily Yoke</div>
+<div class="logo">💪</div>
 <div class="tagline">Training Tracker</div>
 
 <div class="card">
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('login')">Log in</div>
-    <div class="tab" onclick="switchTab('signup')">Sign up</div>
+    <div class="tab active" onclick="switchTab('login')"  id="tab-login">Log in</div>
+    <div class="tab"        onclick="switchTab('signup')" id="tab-signup">Sign up</div>
   </div>
 
   <!-- LOGIN -->
@@ -109,7 +109,7 @@
     <button class="btn primary" id="login-btn" onclick="doLogin()">Log in</button>
   </div>
 
-  <!-- SIGNUP -->
+  <!-- SIGN UP -->
   <div class="form-panel" id="panel-signup">
     <div class="error-box" id="signup-error"></div>
     <div class="success-box" id="signup-success"></div>
@@ -132,9 +132,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ── CONFIG — replace with your Supabase project values ────
+// ── CONFIG — injected at build time ───────────────────────
 const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+
+// ── COACH EMAILS — add any coach email addresses here ─────
+const COACH_EMAILS = [
+  'tashbromiley@gmail.com',
+  'coach1@test.com'
+];
 // ──────────────────────────────────────────────────────────
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -147,10 +153,11 @@ sb.auth.getSession().then(({ data: { session } }) => {
 function switchTab(tab) {
   ['login', 'signup'].forEach(t => {
     document.getElementById(`panel-${t}`).classList.toggle('active', t === tab);
-    document.querySelectorAll('.tab')[t === 'login' ? 0 : 1].classList.toggle('active', t === tab);
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
   });
 }
 
+// ── LOGIN ──────────────────────────────────────────────────
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-password').value;
@@ -173,6 +180,7 @@ async function doLogin() {
   redirect(data.user);
 }
 
+// ── SIGN UP ────────────────────────────────────────────────
 async function doSignup() {
   const name  = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
@@ -203,9 +211,8 @@ async function doSignup() {
     return;
   }
 
-  // Supabase may require email confirmation depending on your settings.
-  // If confirmations are OFF, session will exist immediately.
   if (data.session) {
+    await upsertProfile(data.user, email);
     redirect(data.user);
   } else {
     suc.textContent = 'Check your email to confirm your account, then log in.';
@@ -215,19 +222,36 @@ async function doSignup() {
   }
 }
 
+// ── PROFILE UPSERT ─────────────────────────────────────────
+async function upsertProfile(user, email) {
+  const isCoach = COACH_EMAILS.includes((email || user.email || '').toLowerCase());
+  await sb.from('profiles').upsert({
+    user_id: user.id,
+    email:   email || user.email,
+    role:    isCoach ? 'coach' : 'user'
+  });
+}
+
+// ── REDIRECT ───────────────────────────────────────────────
 async function redirect(user) {
-  // Check if user already has a saved program
-  const { data } = await sb
+  const email = (user.email || '').toLowerCase();
+
+  // Coach — skip programme check, go straight to dashboard
+  if (COACH_EMAILS.includes(email)) {
+    // Ensure coach profile row exists (idempotent)
+    await upsertProfile(user, email);
+    window.location.href = 'coach.html';
+    return;
+  }
+
+  // Athlete — check if programme exists
+  const { data: prog } = await sb
     .from('user_programs')
     .select('id')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (data) {
-    window.location.href = 'app.html';
-  } else {
-    window.location.href = 'setup.html';
-  }
+  window.location.href = prog ? 'app.html' : 'setup.html';
 }
 
 // Allow Enter key

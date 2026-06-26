@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Coach Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0d; --surface: #181818; --surface2: #222; --surface3: #2a2a2a;
+      --gold: #f0c040; --gold-bg: #1e1800;
+      --blue: #4a9eff; --blue-bg: #0a1a2e;
+      --green: #3dba6a; --green-bg: #0a1e12;
+      --red: #f06060; --red-bg: #2a0a0a;
+      --purple: #b07fff; --purple-bg: #150a2a; --purple-dim: #6a4aaa;
+      --orange: #ff9a3c; --orange-bg: #1e1000;
+      --text: #f0f0f0; --muted: #777; --border: #2e2e2e; --radius: 14px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    /* ── HEADER ── */
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 600px; margin: 0 auto; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 18px; font-weight: 800; color: var(--purple); }
+    .logout-btn { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer; }
+
+    /* ── LOADING ── */
+    .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CONTENT ── */
+    .content { max-width: 600px; margin: 0 auto; padding: 20px 16px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: var(--muted); margin-bottom: 12px;
+    }
+
+    /* ── USER CARDS ── */
+    .user-card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: border-color .15s;
+    }
+    .user-card:active { border-color: var(--purple); }
+    .user-card-top { display: flex; align-items: center; gap: 12px; }
+    .user-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--purple-bg); border: 1.5px solid var(--purple-dim); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-arrow { color: var(--muted); font-size: 18px; }
+
+    .user-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .stat-pill {
+      background: var(--surface2); border-radius: 10px; padding: 10px 12px;
+    }
+    .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 3px; }
+    .stat-value { font-size: 14px; font-weight: 700; }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.orange { color: var(--orange); }
+    .stat-value.muted  { color: var(--muted); }
+
+    /* ── DETAIL VIEW ── */
+    .detail-view { display: none; }
+    .detail-view.active { display: block; }
+    .list-view { }
+    .list-view.hidden { display: none; }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: none; color: var(--purple);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      padding: 0; margin-bottom: 20px; -webkit-tap-highlight-color: transparent;
+    }
+
+    .detail-header { margin-bottom: 20px; }
+    .detail-name { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+    .detail-sub  { font-size: 13px; color: var(--muted); }
+
+    .detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
+    .detail-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+    .detail-stat-val { font-size: 20px; font-weight: 800; }
+    .detail-stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-top: 2px; }
+
+    /* week history */
+    .week-row {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-bottom: 8px;
+    }
+    .week-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .week-label { font-size: 14px; font-weight: 700; }
+    .week-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: var(--purple-bg); color: var(--purple); }
+    .day-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .day-chip {
+      font-size: 12px; font-weight: 600; padding: 4px 10px;
+      border-radius: 20px; border: 1px solid var(--border);
+    }
+    .day-chip.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+    .day-chip.pending { color: var(--muted); }
+
+    /* pb list */
+    .pb-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .pb-row:last-child { border-bottom: none; }
+    .pb-name { font-size: 14px; font-weight: 600; }
+    .pb-val  { font-size: 14px; font-weight: 700; color: var(--gold); }
+
+    .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 24px 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">🏋️ Coach</div>
+    <button class="logout-btn" onclick="doLogout()">Log out</button>
+  </div>
+</div>
+
+<div id="loading" class="loading-screen">
+  <div class="spinner"></div>
+  <p style="color:var(--muted);font-size:14px">Loading athletes…</p>
+</div>
+
+<div id="main" style="display:none">
+  <!-- LIST VIEW -->
+  <div class="content list-view" id="list-view">
+    <div class="section-label" id="athlete-count">Athletes</div>
+    <div id="user-list"></div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div class="content detail-view" id="detail-view">
+    <button class="back-btn" onclick="showList()">‹ All athletes</button>
+    <div class="detail-header">
+      <div class="detail-name" id="d-name"></div>
+      <div class="detail-sub"  id="d-email"></div>
+    </div>
+    <div class="detail-stats">
+      <div class="detail-stat">
+        <div class="detail-stat-val" id="d-total"></div>
+        <div class="detail-stat-label">Total sessions</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-val" id="d-week"></div>
+        <div class="detail-stat-label">This week</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-val" id="d-streak"></div>
+        <div class="detail-stat-label">Week streak</div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-bottom:12px">Personal Bests</div>
+    <div id="d-pbs" class="surface" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px 16px;margin-bottom:24px"></div>
+
+    <div class="section-label" style="margin-bottom:12px">Session History</div>
+    <div id="d-history"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── CONFIG — injected at build time ───────────────────────
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+// ──────────────────────────────────────────────────────────
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let allUsers = []; // { profile, program, trainingData }
+
+// ── INIT ───────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  // Verify coach role
+  const { data: profile } = await sb.from('profiles').select('role').eq('user_id', session.user.id).maybeSingle();
+  if (profile?.role !== 'coach') { window.location.href = 'app.html'; return; }
+
+  await loadAllUsers();
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+}
+
+async function loadAllUsers() {
+  // Load all programs (name + structure)
+  const { data: programs } = await sb.from('user_programs').select('user_id, name, program');
+  // Load all training data
+  const { data: trainingRows } = await sb.from('training_data').select('user_id, data');
+  // Load all profiles (email)
+  const { data: profiles } = await sb.from('profiles').select('user_id, email, role');
+
+  // Build a map
+  const trainingMap = {};
+  (trainingRows || []).forEach(r => { trainingMap[r.user_id] = r.data; });
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.user_id] = p; });
+
+  // Only show athletes (not coaches)
+  allUsers = (programs || [])
+    .filter(p => profileMap[p.user_id]?.role !== 'coach')
+    .map(p => ({
+      userId:   p.user_id,
+      name:     p.name,
+      email:    profileMap[p.user_id]?.email || '',
+      program:  p.program || [],
+      data:     trainingMap[p.user_id] || {}
+    }));
+
+  renderList();
+}
+
+// ── LIST VIEW ──────────────────────────────────────────────
+function renderList() {
+  const container = document.getElementById('user-list');
+  document.getElementById('athlete-count').textContent = `${allUsers.length} Athlete${allUsers.length === 1 ? '' : 's'}`;
+
+  if (!allUsers.length) {
+    container.innerHTML = '<div class="empty">No athletes yet — share the sign-up link!</div>';
+    return;
+  }
+
+  container.innerHTML = allUsers.map((u, i) => {
+    const stats = computeStats(u);
+    const initials = u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const lastClass = stats.daysSinceLast === null ? 'muted' : stats.daysSinceLast <= 3 ? 'green' : 'orange';
+    const lastText = stats.lastActive ? formatRelative(stats.lastActive) : 'No sessions yet';
+    const nextText = stats.nextDue || '—';
+
+    return `
+      <div class="user-card" onclick="showDetail(${i})">
+        <div class="user-card-top">
+          <div class="user-avatar">${initials}</div>
+          <div class="user-info">
+            <div class="user-name">${esc(u.name)}</div>
+            <div class="user-email">${esc(u.email)}</div>
+          </div>
+          <div class="user-arrow">›</div>
+        </div>
+        <div class="user-stats">
+          <div class="stat-pill">
+            <div class="stat-label">Last active</div>
+            <div class="stat-value ${lastClass}">${lastText}</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-label">Next due</div>
+            <div class="stat-value">${nextText}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── DETAIL VIEW ────────────────────────────────────────────
+function showDetail(idx) {
+  const u = allUsers[idx];
+  const stats = computeStats(u);
+
+  document.getElementById('list-view').classList.add('hidden');
+  document.getElementById('detail-view').classList.add('active');
+
+  document.getElementById('d-name').textContent  = u.name;
+  document.getElementById('d-email').textContent = u.email;
+  document.getElementById('d-total').textContent  = stats.totalSessions;
+  document.getElementById('d-week').textContent   = stats.thisWeekSessions;
+  document.getElementById('d-streak').textContent = stats.weekStreak + (stats.weekStreak === 1 ? ' wk' : ' wks');
+
+  // PBs
+  renderPBs(u);
+  // History
+  renderHistory(u);
+}
+
+function showList() {
+  document.getElementById('detail-view').classList.remove('active');
+  document.getElementById('list-view').classList.remove('hidden');
+}
+
+function renderPBs(u) {
+  const pbs = u.data.pbs || {};
+  const container = document.getElementById('d-pbs');
+  const keys = Object.keys(pbs);
+  if (!keys.length) { container.innerHTML = '<div class="empty">No PBs recorded yet</div>'; return; }
+
+  // Map exercise IDs to names from programme
+  const nameMap = {};
+  (u.program || []).forEach(day => {
+    (day.sections || []).forEach(s => {
+      (s.exercises || []).forEach(ex => { nameMap[ex.id] = ex.name; });
+    });
+  });
+
+  container.innerHTML = keys.map(id => {
+    const name = nameMap[id] || id;
+    const pb = pbs[id];
+    const unit = pb.unit || 'kg';
+    return `<div class="pb-row"><div class="pb-name">${esc(name)}</div><div class="pb-val">${pb.weight} ${unit}</div></div>`;
+  }).join('');
+}
+
+function renderHistory(u) {
+  const completions = u.data.completions || {};
+  const container   = document.getElementById('d-history');
+
+  // Group completions by week key
+  const byWeek = {};
+  Object.entries(completions).forEach(([key, val]) => {
+    if (!val.completedAt) return;
+    const [weekNum, dayIdx] = key.split('_');
+    if (!byWeek[weekNum]) byWeek[weekNum] = [];
+    byWeek[weekNum].push({ dayIdx: parseInt(dayIdx), completedAt: val.completedAt });
+  });
+
+  const weeks = Object.keys(byWeek).sort((a, b) => b - a); // newest first
+  if (!weeks.length) { container.innerHTML = '<div class="empty">No sessions logged yet</div>'; return; }
+
+  // Build day labels from programme
+  const dayLabels = (u.program || []).map(d => d.label || `Day ${d}`);
+
+  container.innerHTML = weeks.map(w => {
+    const sessions = byWeek[w].sort((a, b) => a.dayIdx - b.dayIdx);
+    const chips = sessions.map(s => {
+      const label = dayLabels[s.dayIdx] || `Day ${s.dayIdx + 1}`;
+      const dateStr = formatShortDate(s.completedAt);
+      return `<div class="day-chip done" title="${dateStr}">✓ ${esc(label)}</div>`;
+    }).join('');
+
+    return `
+      <div class="week-row">
+        <div class="week-row-top">
+          <div class="week-label">Week ${w}</div>
+          <div class="week-badge">${sessions.length} session${sessions.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="day-chips">${chips}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── STATS ──────────────────────────────────────────────────
+function computeStats(u) {
+  const completions = u.data.completions || {};
+  const dayLabels   = (u.program || []).map(d => d.label || `Day ${d}`);
+
+  let totalSessions = 0;
+  let lastActive    = null;
+  const weekCounts  = {};
+
+  // Current calendar week number (Mon-based)
+  const nowWeek = getISOWeekNum(new Date());
+
+  Object.entries(completions).forEach(([key, val]) => {
+    if (!val.completedAt) return;
+    totalSessions++;
+    const d = new Date(val.completedAt);
+    if (!lastActive || d > lastActive) lastActive = d;
+
+    const [weekNum] = key.split('_');
+    weekCounts[weekNum] = (weekCounts[weekNum] || 0) + 1;
+  });
+
+  const thisWeekSessions = weekCounts[nowWeek] || 0;
+  const weekStreak = computeWeekStreak(weekCounts, nowWeek);
+
+  // Next session due
+  let nextDue = null;
+  if (lastActive && dayLabels.length) {
+    // Find most recent completed dayIdx
+    let lastDayIdx = -1;
+    let lastDate   = null;
+    Object.entries(completions).forEach(([key, val]) => {
+      if (!val.completedAt) return;
+      const d = new Date(val.completedAt);
+      const [, dayIdx] = key.split('_');
+      if (!lastDate || d > lastDate) { lastDate = d; lastDayIdx = parseInt(dayIdx); }
+    });
+    const nextIdx = (lastDayIdx + 1) % dayLabels.length;
+    nextDue = dayLabels[nextIdx] || `Day ${nextIdx + 1}`;
+  } else if (dayLabels.length) {
+    nextDue = dayLabels[0] || 'Day 1';
+  }
+
+  const daysSinceLast = lastActive
+    ? Math.floor((Date.now() - lastActive.getTime()) / 86400000)
+    : null;
+
+  return { totalSessions, thisWeekSessions, lastActive, daysSinceLast, nextDue, weekStreak };
+}
+
+function computeWeekStreak(weekCounts, nowWeek) {
+  let streak = 0;
+  let w = nowWeek;
+  while (weekCounts[w] > 0) { streak++; w--; }
+  return streak;
+}
+
+function getISOWeekNum(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7)); // Thursday of current week
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// ── FORMATTING ─────────────────────────────────────────────
+function formatRelative(date) {
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7)  return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+function formatShortDate(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── LOGOUT ─────────────────────────────────────────────────
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>
