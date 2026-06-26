@@ -612,8 +612,28 @@ function onInputChange(e) {
   const inp = e.target, exId = inp.dataset.ex, setIdx = parseInt(inp.dataset.set);
   const numSets = parseInt(inp.dataset.numsets), field = inp.dataset.field, val = inp.value.trim();
   const s = exStore(exId, numSets);
-  if (field === 'weight') { s.weights[setIdx] = val; recomputePBs(); refreshCard(exId); updatePBPill(); }
-  else s.reps[setIdx] = val;
+
+  if (field === 'weight') {
+    s.weights[setIdx] = val;
+
+    // Auto-fill subsequent empty set inputs with this weight
+    if (val) {
+      const card = document.getElementById(`card-${exId}`);
+      if (card) {
+        const allWeightInputs = [...card.querySelectorAll('.set-input:not(.reps-input)')];
+        allWeightInputs.forEach((input, i) => {
+          if (i > setIdx && !input.value) {
+            input.value = val;
+            s.weights[i] = val;
+          }
+        });
+      }
+    }
+
+    recomputePBs(); refreshCard(exId); updatePBPill();
+  } else {
+    s.reps[setIdx] = val;
+  }
   scheduleAutoSave();
 }
 
